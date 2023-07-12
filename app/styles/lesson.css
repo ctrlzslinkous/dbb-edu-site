@@ -1,0 +1,14 @@
+section.h3Wrapper {
+    display: none;
+    border: 2px black solid;
+    margin: 1rem;
+    padding: 1rem;
+}
+
+section.h3Wrapper>h3{
+    background-color: aquamarine;
+    padding: 0.5rem;
+}
+section.h2Wrapper>section.h3Wrapper:first-of-type{
+    display:block
+}
