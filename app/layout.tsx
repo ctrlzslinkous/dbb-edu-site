@@ -1,5 +1,5 @@
 // import './globals.css'
-// import '@picocss/pico/css/pico.classless.css'
+import '@picocss/pico'
 import { Open_Sans } from 'next/font/google'
 
 const openSans = Open_Sans({ subsets: ['latin'] })

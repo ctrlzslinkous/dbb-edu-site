@@ -1,7 +1,9 @@
-import { getLessonsMeta, getLessonByName } from "@/lib/lessons";
+import { getDocumentsMeta, getPathByID, getDocumentByPath } from "@/lib/documents";
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import '@picocss/pico'
 import 'app/styles/lesson.css'
+import ProjectFrame from "@/app/components/project_frame";
 
 
 type Props = {
@@ -10,19 +12,20 @@ type Props = {
     }
 }
 
-//TODO: kinda wish we didn't have to do this
 export async function generateParams(){ 
-    const lessons = await getLessonsMeta()
+    const lessons = await getDocumentsMeta("lesson")
 
     if (!lessons) return []
 
     return lessons.map((lesson)=>(
-        {lessonId: lesson.id}
+        {path: lesson.path}
     ))
+    
 }
 
 export async function generateMetadata({params: {lessonId}}: Props){
-    const lesson = await getLessonByName(`${lessonId}.mdx`)
+    const path = await getPathByID(lessonId)
+    const lesson = await getDocumentByPath(`${path}.mdx`)
 
     if(!lesson){
         return {
@@ -40,33 +43,28 @@ function nextStep(){
 }
 
 export default async function Lesson({params: {lessonId}}: Props){
-    const lesson = await getLessonByName(`${lessonId}.mdx`)
+
+    const path = await getPathByID(lessonId)
+    const lesson = await getDocumentByPath(`${path}.mdx`)
+    
 
     if(!lesson) return notFound()
 
     const {meta, content} = lesson
 
-    console.log(content)
-
-    const date = meta.date
-    // console.log(meta.tags)
-
-    // const tags = meta.tags.map((tag, i)=> (
-    //     <Link key={i} href={`/tags/${tag}`}>{tag}</Link>
-    // ))
-
     return (
         <>
             <h2>{meta.title}</h2>
-            <p>{date}</p>
-            <article>
-                {content}
-            </article>
-            {/* <nav className="grid">
-                <button onClick={nextStep()}>&lt;</button>
-                <button onClick={nextStep()}>*</button>
-                <button onClick={nextStep()}>&gt;</button>
-            </nav> */}
+            <div className="grid">
+                <div>
+                    <article>
+                        {content}
+                    </article>
+                </div>
+                <div>
+                    <ProjectFrame/>
+                </div>
+            </div>
             <section>
                 <h4>Related:</h4>
                 {/* <span>{tags}</span> */}

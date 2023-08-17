@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLessonsMeta } from "@/lib/lessons";
+import { getDocumentsMeta } from "@/lib/documents";
 
 type Props = {
     lesson: LessonMeta
@@ -12,7 +12,6 @@ export default async function LessonListItem({lesson}: Props){
         <li>
             <Link href={`/lessons/${id}`}>{title}</Link>
             <br />
-            <p>{date}</p>
         </li>
     )
 }

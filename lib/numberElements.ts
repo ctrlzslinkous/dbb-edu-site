@@ -9,7 +9,7 @@ export default function numberElements(options: { tagNames: never[]; numberPunct
     const numberPunctuation = options.numberPunctuation || " "
     const prefixNumbers = options.prefixNumbers || false
     const counters = new Array(tagNames.length).fill(1)
-    return (tree:Root, file: any)=>{
+    return (tree:Root)=>{
         visit(tree,'element', function (node: Element) {
                 for(let i = 0; i < tagNames.length; i++){
                     if(node.tagName == tagNames[i]){
@@ -26,7 +26,7 @@ export default function numberElements(options: { tagNames: never[]; numberPunct
                         }
 
                         counters[i]++
-                        console.log(node)
+
                     }
                 }
 

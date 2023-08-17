@@ -1,11 +1,6 @@
 import {compileMDX} from 'next-mdx-remote/rsc'
-import { stringify } from 'querystring'
 import rehypeHighlight from 'rehype-highlight/lib'
-import rehypeInferReadingTimeMeta from 'rehype-infer-reading-time-meta'
 import sectionParent from '@agentofuser/rehype-section'
-import rehypeRewrite from 'rehype-rewrite'
-import { ReactComponentElement } from 'react'
-import rehypeAutolinkHeadings from 'rehype-autolink-headings/lib'
 import numberElements from './numberElements'
 
 const section = (sectionParent as any).default
@@ -18,8 +13,20 @@ type Filetree = {
     ]
 }
 
-export async function getLessonByName(fileName: string): Promise<Lesson | undefined> {
-    const res = await fetch(`https://raw.githubusercontent.com/ctrlzslinkous/lms-content/main/${fileName}`, {
+export async function getPathByID(docId: string){
+    const documents = await getDocumentsMeta("any")
+
+    if (!documents) return
+    for(let doc of documents){
+        if(doc.id == docId){
+            return doc.path
+        }
+    }
+}
+
+export async function getDocumentByPath(filePath: string): Promise<Lesson | undefined> {
+    console.log("file path in getDocumentByPath", filePath)
+    const res = await fetch(`https://raw.githubusercontent.com/ctrlzslinkous/lms-content/main/${filePath}`, {
         headers: {
             Accept: 'application/vnd.github+json',
             Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -33,34 +40,37 @@ export async function getLessonByName(fileName: string): Promise<Lesson | undefi
 
     if(rawMDX === '404: Not Found') return undefined
     
-    const {frontmatter, content} = await compileMDX<{title: string, date: string, tags: string[]}>({
+    const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], course: string}>({
      source: rawMDX,
      components: {},
      options: {
         parseFrontmatter: true,
         mdxOptions: {
             rehypePlugins: [
-                // rehypeHighlight,
+                rehypeHighlight,
                 // rehypeInferReadingTimeMeta,
                 section,
-                [numberElements, {tagNames: ["h3"], numberPunctuation: ": ", prefixNumbers: true}]
+                [numberElements, {tagNames: ["h3"], numberPunctuation: ". ", prefixNumbers: true}]
             ],
         },
      }
     })
 
-    const id = fileName.replace(/\.mdx$/, '')
-    const lessonObj: Lesson = {meta: {id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags}, content}
+    const path = filePath.replace(/\.mdx$/, '')
+    
+    const lessonObj: Lesson = {meta: {path, id:frontmatter.id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags, course: frontmatter.course}, content}
+    console.log("lesson object path", lessonObj.meta.path)
     return lessonObj
 }
 
-export async function getLessonsMeta(): Promise<LessonMeta[] | undefined>{
+export async function getDocumentsMeta(docType: "lesson" | "course" | "reference" | "tutorial" | "article" | "any"): Promise<LessonMeta[] | undefined>{
     const res = await fetch('https://api.github.com/repos/ctrlzslinkous/lms-content/git/trees/main?recursive=1', {
         headers: {
             Accept: 'application/vnd.github+json',
             Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
             'X-GitHub-Api-Version': '2022-11-28'
-        }
+        },
+        cache: 'no-store'
     })
 
     if(!res.ok) return undefined
@@ -69,14 +79,15 @@ export async function getLessonsMeta(): Promise<LessonMeta[] | undefined>{
 
     const filesArray = repoFiletree.tree.map(obj => obj.path).filter(path => path.endsWith('.mdx'))
 
-    const lessons: LessonMeta[] = []
-
+    const documents: LessonMeta[] = []
+    //TODO: Select by document type
     for(const file of filesArray){
-        const lesson = await getLessonByName(file)
-        if(lesson){
-            const { meta } = lesson
-            lessons.push(meta)
+        const document = await getDocumentByPath(file)
+
+        if(document){
+            const { meta } = document
+            documents.push(meta)
         }
     }
-    return lessons
+    return documents
 }
