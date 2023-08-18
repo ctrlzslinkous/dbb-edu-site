@@ -12,7 +12,7 @@ export default async function LessonList(){
         <section>
             <h2>Lessons</h2>
             <ul>
-                {lessons.map((lesson: LessonMeta)=> (
+                {lessons.map((lesson: DocumentMeta)=> (
                     <LessonListItem key={lesson.id} lesson={lesson} />
                 ))}
             </ul>

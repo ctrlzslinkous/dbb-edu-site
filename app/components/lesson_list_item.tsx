@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getDocumentsMeta } from "@/lib/documents";
 
 type Props = {
-    lesson: LessonMeta
+    lesson: DocumentMeta
 }
 
 export default async function LessonListItem({lesson}: Props){

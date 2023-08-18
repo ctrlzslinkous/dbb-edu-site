@@ -40,7 +40,7 @@ export async function getDocumentByPath(filePath: string): Promise<Lesson | unde
 
     if(rawMDX === '404: Not Found') return undefined
     
-    const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], course: string}>({
+    const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], course: string, docType: string}>({
      source: rawMDX,
      components: {},
      options: {
@@ -58,12 +58,12 @@ export async function getDocumentByPath(filePath: string): Promise<Lesson | unde
 
     const path = filePath.replace(/\.mdx$/, '')
     
-    const lessonObj: Lesson = {meta: {path, id:frontmatter.id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags, course: frontmatter.course}, content}
+    const lessonObj: Lesson = {meta: {path, id:frontmatter.id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags, course: frontmatter.course, type: frontmatter.docType}, content}
     console.log("lesson object path", lessonObj.meta.path)
     return lessonObj
 }
 
-export async function getDocumentsMeta(docType: "lesson" | "course" | "reference" | "tutorial" | "article" | "any"): Promise<LessonMeta[] | undefined>{
+export async function getDocumentsMeta(docType: "lesson" | "course" | "reference" | "tutorial" | "article" | "any"): Promise<DocumentMeta[] | undefined>{
     const res = await fetch('https://api.github.com/repos/ctrlzslinkous/lms-content/git/trees/main?recursive=1', {
         headers: {
             Accept: 'application/vnd.github+json',
@@ -79,14 +79,17 @@ export async function getDocumentsMeta(docType: "lesson" | "course" | "reference
 
     const filesArray = repoFiletree.tree.map(obj => obj.path).filter(path => path.endsWith('.mdx'))
 
-    const documents: LessonMeta[] = []
+    const documents: DocumentMeta[] = []
     //TODO: Select by document type
     for(const file of filesArray){
         const document = await getDocumentByPath(file)
 
         if(document){
             const { meta } = document
-            documents.push(meta)
+            if(meta.type == docType || docType == "any"){
+                documents.push(meta)
+            }
+            
         }
     }
     return documents

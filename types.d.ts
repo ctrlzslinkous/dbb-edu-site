@@ -1,11 +1,13 @@
-type LessonMeta = {
+type DocumentMeta = {
     path: string
     id: string,
     title: string,
     date: string,
     tags: string[],
-    course: string
+    type: string
 }
+
+type LessonMeta = DocumentMeta & {course: string}
 
 type Lesson = {
     meta: LessonMeta,
