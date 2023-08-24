@@ -8,8 +8,15 @@ type DocumentMeta = {
 }
 
 type LessonMeta = DocumentMeta & {course: string}
+type CourseMeta = DocumentsMeta & {lessonIds: string[]}
 
 type Lesson = {
     meta: LessonMeta,
     content: ReactElement<any, string | JSXElementConstructor<any>>,
+}
+
+type Course = {
+    meta: CourseMeta,
+    content: ReactElement<any, string | JSXElementConstructor<any>>,
+    lessons: Lesson[],
 }

@@ -1,5 +1,5 @@
 - Lessons organized into courses
-  - Doctype field
+  x Doctype field
   - Change routing to nest lessons into their courses
   - Pull out lesson content as component to reuse for tutorials
 - Session stuff

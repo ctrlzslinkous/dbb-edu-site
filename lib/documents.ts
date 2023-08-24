@@ -14,7 +14,7 @@ type Filetree = {
 }
 
 export async function getPathByID(docId: string){
-    const documents = await getDocumentsMeta("any")
+    const documents = await getAllDocuments()
 
     if (!documents) return
     for(let doc of documents){
@@ -63,7 +63,7 @@ export async function getDocumentByPath(filePath: string): Promise<Lesson | unde
     return lessonObj
 }
 
-export async function getDocumentsMeta(docType: "lesson" | "course" | "reference" | "tutorial" | "article" | "any"): Promise<DocumentMeta[] | undefined>{
+export async function getAllDocuments(): Promise<DocumentMeta[] | undefined>{
     const res = await fetch('https://api.github.com/repos/ctrlzslinkous/lms-content/git/trees/main?recursive=1', {
         headers: {
             Accept: 'application/vnd.github+json',
@@ -74,23 +74,100 @@ export async function getDocumentsMeta(docType: "lesson" | "course" | "reference
     })
 
     if(!res.ok) return undefined
-    
+
     const repoFiletree: Filetree = await res.json()
-
     const filesArray = repoFiletree.tree.map(obj => obj.path).filter(path => path.endsWith('.mdx'))
-
     const documents: DocumentMeta[] = []
-    //TODO: Select by document type
+
     for(const file of filesArray){
         const document = await getDocumentByPath(file)
-
         if(document){
             const { meta } = document
-            if(meta.type == docType || docType == "any"){
-                documents.push(meta)
-            }
-            
+            documents.push(meta)  
         }
     }
+    
     return documents
+}
+
+export async function getDocumentMDXByID(id: string): Promise<string | undefined>{
+
+    const filePath = await getPathByID(id)
+    const res = await fetch(`https://raw.githubusercontent.com/ctrlzslinkous/lms-content/main/${filePath}`, {
+        headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            'X-GitHub-Api-Version': '2022-11-28',
+            cache: "no-cache",
+        },
+    }, )
+    if(!res.ok) return undefined
+    const rawMDX = await res.text()
+    if(rawMDX === '404: Not Found') return undefined
+    return rawMDX
+
+}
+
+export async function createLessonFromMDX(rawMDX: string){
+    
+    const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], course: string, docType: string}>({
+        source: rawMDX,
+        components: {},
+        options: {
+           parseFrontmatter: true,
+           mdxOptions: {
+               rehypePlugins: [
+                   rehypeHighlight,
+                   // rehypeInferReadingTimeMeta,
+                   section,
+                   [numberElements, {tagNames: ["h3"], numberPunctuation: ". ", prefixNumbers: true}]
+               ],
+           },
+        }
+       })
+   
+       const path = getPathByID(frontmatter.id)
+       if(path != undefined){
+        const lessonObj: Lesson = {meta: {path: path as any as string, id:frontmatter.id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags, course: frontmatter.course, type: frontmatter.docType}, content}
+        return lessonObj
+       } else {
+        return console.warn("Couldn't find valid path for", frontmatter)
+       }
+
+}
+
+export async function createCourseFromMDX(rawMDX: string){
+
+    const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], lessons: string[], docType: string}>({
+        source: rawMDX,
+        components: {},
+        options: {
+           parseFrontmatter: true,
+        }
+       })
+   
+       const path = getPathByID(frontmatter.id)
+       const lessons: Lesson[] = []
+       for(let i=0; i<frontmatter.lessons.length; i++){
+        const lessonMDX = await getDocumentMDXByID(frontmatter.lessons[i])
+        if(lessonMDX === undefined) return console.warn("No lesson returned:", frontmatter.lessons[i], "in course:", frontmatter.id)
+        const lesson = await createLessonFromMDX(lessonMDX)
+        await lessons.push()
+       }
+       if(path != undefined){
+        const courseObj: Course = {
+            meta: {
+                path: path,
+                id: frontmatter.id,
+                title: frontmatter.title,
+                date: frontmatter.date,
+                tags: frontmatter.tags,
+                type: frontmatter.docType
+            }, content,
+            lessons: lessons
+        }
+        return courseObj
+       } else {
+        return console.warn("Couldn't find valid path for", frontmatter)
+       }
 }
