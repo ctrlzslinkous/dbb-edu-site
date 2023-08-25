@@ -1,4 +1,4 @@
-import { getDocumentsMeta, getPathByID, getDocumentByPath } from "@/lib/documents";
+import { getDocumentsMeta, getPathByID, getLessonByPath } from "@/lib/documents";
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import '@picocss/pico'
@@ -12,31 +12,31 @@ type Props = {
     }
 }
 
-export async function generateParams(){ 
-    const lessons = await getDocumentsMeta("lesson")
+// export async function generateParams(){ 
+//     const lessons = await getDocumentsMeta()
 
-    if (!lessons) return []
+//     if (!lessons) return []
 
-    return lessons.map((lesson)=>(
-        {path: lesson.path}
-    ))
+//     return lessons.map((lesson)=>(
+//         {path: lesson.path}
+//     ))
     
-}
+// }
 
-export async function generateMetadata({params: {lessonId}}: Props){
-    const path = await getPathByID(lessonId)
-    const lesson = await getDocumentByPath(`${path}.mdx`)
+// export async function generateMetadata({params: {lessonId}}: Props){
+//     const path = await getPathByID(lessonId)
+//     const lesson = await getLessonByPath(`${path}.mdx`)
 
-    if(!lesson){
-        return {
-            title: 'Lesson Not Found'
-        }
-    }
+//     if(!lesson){
+//         return {
+//             title: 'Lesson Not Found'
+//         }
+//     }
 
-    return {
-        title: lesson.meta.title,
-    }
-}
+//     return {
+//         title: lesson.meta.title,
+//     }
+// }
 
 function nextStep(){
     return undefined
@@ -45,7 +45,7 @@ function nextStep(){
 export default async function Lesson({params: {lessonId}}: Props){
 
     const path = await getPathByID(lessonId)
-    const lesson = await getDocumentByPath(`${path}.mdx`)
+    const lesson = await getLessonByPath(`${path}.mdx`)
     
 
     if(!lesson) return notFound()
@@ -69,9 +69,6 @@ export default async function Lesson({params: {lessonId}}: Props){
                 <h4>Related:</h4>
                 {/* <span>{tags}</span> */}
             </section>
-            <p>
-                <Link href="/">Home</Link>
-            </p>
         </>
     )
     

@@ -6,11 +6,11 @@ type Props = {
 }
 
 export default async function LessonListItem({lesson}: Props){
-    const {id, title, date} = lesson
+    const {id, title} = lesson
 
     return (
         <li>
-            <Link href={`/lessons/${id}`}>{title}</Link>
+            <Link href={`/${id}`}>{title}</Link>
             <br />
         </li>
     )

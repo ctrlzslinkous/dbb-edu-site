@@ -13,8 +13,34 @@ type Filetree = {
     ]
 }
 
+export async function getDocumentsMeta(): Promise<DocumentMeta[] | undefined>{
+    const res = await fetch('https://api.github.com/repos/ctrlzslinkous/lms-content/git/trees/main?recursive=1', {
+        headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            'X-GitHub-Api-Version': '2022-11-28'
+        },
+        cache: 'no-store' // TODO: remove
+    })
+
+    if(!res.ok) return undefined
+    
+    const repoFiletree: Filetree = await res.json()
+    const filesArray = repoFiletree.tree.map(obj => obj.path).filter(path => path.endsWith('.mdx'))
+    const documents: DocumentMeta[] = []
+
+    for(const file of filesArray){
+        const document = await getLessonByPath(file) //TODO: Parsing by doc type? 
+        if(document){
+            const { meta } = document
+            documents.push(meta)
+        }
+    }
+    return documents
+}
+
 export async function getPathByID(docId: string){
-    const documents = await getAllDocuments()
+    const documents = await getDocumentsMeta()
 
     if (!documents) return
     for(let doc of documents){
@@ -24,8 +50,7 @@ export async function getPathByID(docId: string){
     }
 }
 
-export async function getDocumentByPath(filePath: string): Promise<Lesson | undefined> {
-    console.log("file path in getDocumentByPath", filePath)
+export async function getLessonByPath(filePath: string): Promise<Lesson | undefined> {
     const res = await fetch(`https://raw.githubusercontent.com/ctrlzslinkous/lms-content/main/${filePath}`, {
         headers: {
             Accept: 'application/vnd.github+json',
@@ -56,43 +81,16 @@ export async function getDocumentByPath(filePath: string): Promise<Lesson | unde
      }
     })
 
-    const path = filePath.replace(/\.mdx$/, '')
-    
-    const lessonObj: Lesson = {meta: {path, id:frontmatter.id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags, course: frontmatter.course, type: frontmatter.docType}, content}
+    const path = filePath
+    const date = new Date(frontmatter.date)
+
+    const lessonObj: Lesson = {meta: {path, id:frontmatter.id, title: frontmatter.title, date: date, tags: frontmatter.tags, course: frontmatter.course, type: frontmatter.docType}, content}
     console.log("lesson object path", lessonObj.meta.path)
     return lessonObj
 }
 
-export async function getAllDocuments(): Promise<DocumentMeta[] | undefined>{
-    const res = await fetch('https://api.github.com/repos/ctrlzslinkous/lms-content/git/trees/main?recursive=1', {
-        headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-            'X-GitHub-Api-Version': '2022-11-28'
-        },
-        cache: 'no-store'
-    })
-
-    if(!res.ok) return undefined
-
-    const repoFiletree: Filetree = await res.json()
-    const filesArray = repoFiletree.tree.map(obj => obj.path).filter(path => path.endsWith('.mdx'))
-    const documents: DocumentMeta[] = []
-
-    for(const file of filesArray){
-        const document = await getDocumentByPath(file)
-        if(document){
-            const { meta } = document
-            documents.push(meta)  
-        }
-    }
-    
-    return documents
-}
-
-export async function getDocumentMDXByID(id: string): Promise<string | undefined>{
-
-    const filePath = await getPathByID(id)
+export async function getRawMDXByPath(filePath: string): Promise<string | undefined> {
+    console.log("filePath in getRawMDX", filePath)
     const res = await fetch(`https://raw.githubusercontent.com/ctrlzslinkous/lms-content/main/${filePath}`, {
         headers: {
             Accept: 'application/vnd.github+json',
@@ -105,11 +103,9 @@ export async function getDocumentMDXByID(id: string): Promise<string | undefined
     const rawMDX = await res.text()
     if(rawMDX === '404: Not Found') return undefined
     return rawMDX
-
 }
 
-export async function createLessonFromMDX(rawMDX: string){
-    
+export async function createLessonFromRawMDX(rawMDX: string): Promise<Lesson>{
     const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], course: string, docType: string}>({
         source: rawMDX,
         components: {},
@@ -125,49 +121,41 @@ export async function createLessonFromMDX(rawMDX: string){
            },
         }
        })
-   
-       const path = getPathByID(frontmatter.id)
-       if(path != undefined){
-        const lessonObj: Lesson = {meta: {path: path as any as string, id:frontmatter.id, title: frontmatter.title, date: frontmatter.date, tags: frontmatter.tags, course: frontmatter.course, type: frontmatter.docType}, content}
-        return lessonObj
-       } else {
-        return console.warn("Couldn't find valid path for", frontmatter)
-       }
+       const date = new Date(frontmatter.date)
+       const filePath = await getPathByID(frontmatter.id)
+       const lessonObj: Lesson = {meta: {path: filePath!, id:frontmatter.id, title: frontmatter.title, date: date, tags: frontmatter.tags, course: frontmatter.course, type: frontmatter.docType}, content}
+       return lessonObj
 
 }
 
-export async function createCourseFromMDX(rawMDX: string){
 
-    const {frontmatter, content} = await compileMDX<{id: string, title: string, date: string, tags: string[], lessons: string[], docType: string}>({
-        source: rawMDX,
+
+export async function getCourseById(courseId: string){
+    const path = await getPathByID(courseId)
+    if (!path) return console.warn("Could not find path for " + courseId) //this should happen in getPath...
+    const courseMDX = await getRawMDXByPath(path)
+    if(!courseMDX) return console.warn("No markdown for ", courseId)
+    const {frontmatter, content} = await compileMDX<CourseMeta>({
+        source: courseMDX!,
         components: {},
         options: {
            parseFrontmatter: true,
+           mdxOptions: {
+               rehypePlugins: [],
+           },
         }
        })
-   
-       const path = getPathByID(frontmatter.id)
+       
        const lessons: Lesson[] = []
-       for(let i=0; i<frontmatter.lessons.length; i++){
-        const lessonMDX = await getDocumentMDXByID(frontmatter.lessons[i])
-        if(lessonMDX === undefined) return console.warn("No lesson returned:", frontmatter.lessons[i], "in course:", frontmatter.id)
-        const lesson = await createLessonFromMDX(lessonMDX)
-        await lessons.push()
+       console.log(frontmatter)
+       for(let id of frontmatter.lessonIds){
+          const lessonPath = await getPathByID(id)
+          const lessonMDX = await getRawMDXByPath(lessonPath!)
+          const lesson = await createLessonFromRawMDX(lessonMDX!)
+          lessons.push(lesson)
        }
-       if(path != undefined){
-        const courseObj: Course = {
-            meta: {
-                path: path,
-                id: frontmatter.id,
-                title: frontmatter.title,
-                date: frontmatter.date,
-                tags: frontmatter.tags,
-                type: frontmatter.docType
-            }, content,
-            lessons: lessons
-        }
-        return courseObj
-       } else {
-        return console.warn("Couldn't find valid path for", frontmatter)
-       }
+       const date = new Date(frontmatter.date)
+       const courseObj: Course = {meta: {path: path, id:frontmatter.id, title: frontmatter.title, date: date, tags: frontmatter.tags, type: frontmatter.docType, lessonIds: frontmatter.lessonIDs}, content, lessons}
+       return courseObj
+
 }

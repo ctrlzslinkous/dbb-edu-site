@@ -1,4 +1,5 @@
 import 'app/styles/lesson.css'
+import Link from 'next/link'
 
 export default function LessonLayout({
     children,
@@ -8,7 +9,9 @@ export default function LessonLayout({
     return (
         <>
             {children}
-           
+            <p>
+                <Link href="/">Home</Link>
+            </p>
         </>
     )
   }

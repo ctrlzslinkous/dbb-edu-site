@@ -2,7 +2,7 @@ type DocumentMeta = {
     path: string
     id: string,
     title: string,
-    date: string,
+    date: Date,
     tags: string[],
     type: string
 }
